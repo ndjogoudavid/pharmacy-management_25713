@@ -1,29 +1,41 @@
 package rw.auca.ac.pharmacy.model.core;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import jakarta.persistence.*;
-import lombok.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.Table;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 import org.hibernate.annotations.UpdateTimestamp;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.util.Objects;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "medicine")
+@SQLRestriction("deleted_at IS NULL")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@ToString(exclude = {"createdAt", "updatedAt", "deletedAt"})
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Medicine {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "sku", unique = true, length = 50)
+    @Column(unique = true, length = 50)
     private String sku;
 
     @Column(nullable = false, unique = true, length = 120)
@@ -36,11 +48,10 @@ public class Medicine {
     private String unit;
 
     @Column(nullable = false)
-    private int quantity;
+    private Integer quantity;
 
-    @Column(name = "reorder_level", nullable = false)
-    @Builder.Default
-    private int reorderLevel = 10;
+    @Column
+    private Integer reorderLevel;
 
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal price;
@@ -48,50 +59,27 @@ public class Medicine {
     @Column(length = 120)
     private String manufacturer;
 
-    @Column(name = "is_controlled", nullable = false)
-    @Builder.Default
-    private boolean controlled = false;
+    @Column(columnDefinition = "boolean default false")
+    private Boolean isControlled;
 
-    @Column(name = "expiry_date")
+    @Column
     private LocalDate expiryDate;
 
+    @ManyToMany(fetch = FetchType.LAZY)
+    @JoinTable(
+        name = "medicine_category",
+        joinColumns = @JoinColumn(name = "medicine_id"),
+        inverseJoinColumns = @JoinColumn(name = "category_id")
+    )
+    @Builder.Default
+    private List<Category> categories = new ArrayList<>();
+
     @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
     @UpdateTimestamp
-    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
-
-    public boolean isLowStock() {
-        return quantity <= reorderLevel;
-    }
-
-    public boolean isExpired() {
-        return expiryDate != null && expiryDate.isBefore(LocalDate.now());
-    }
-
-    public void softDelete() {
-        this.deletedAt = LocalDateTime.now();
-    }
-
-    public boolean isActive() {
-        return deletedAt == null;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Medicine medicine = (Medicine) o;
-        return Objects.equals(id, medicine.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
 }

@@ -18,6 +18,7 @@ import java.util.List;
 @RequestMapping("/api/medicines")
 @RequiredArgsConstructor
 public class MedicineController {
+
     private final MedicineService service;
 
     @GetMapping
@@ -27,7 +28,7 @@ public class MedicineController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public MedicineDto create(@Valid @RequestBody MedicineRequest request) {
+    public MedicineDto create(@RequestBody @Valid MedicineRequest request) {
         return service.create(request);
     }
 
@@ -37,7 +38,7 @@ public class MedicineController {
     }
 
     @PutMapping("/{id}")
-    public MedicineDto update(@PathVariable Long id, @Valid @RequestBody MedicineRequest request) {
+    public MedicineDto update(@PathVariable Long id, @RequestBody @Valid MedicineRequest request) {
         return service.update(id, request);
     }
 
@@ -49,6 +50,11 @@ public class MedicineController {
 
     @GetMapping("/search")
     public ResponseEntity<List<MedicineDto>> search(@RequestParam String name) {
-        return ResponseEntity.ok(service.findByNameContaining(name));
+        return ResponseEntity.ok(service.search(name));
+    }
+
+    @GetMapping("/low-stock")
+    public ResponseEntity<List<MedicineDto>> getLowStock() {
+        return ResponseEntity.ok(service.getLowStock());
     }
 }

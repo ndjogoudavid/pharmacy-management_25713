@@ -1,12 +1,9 @@
 package rw.auca.ac.pharmacy.dto;
 
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.time.LocalDate;
 import java.util.List;
 
@@ -15,15 +12,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class PrescriptionCreateRequest {
-    @NotNull
-    private LocalDate dateIssued;
-
-    private String notes;
-
     private Long patientId;
-
     private Long pharmacistId;
-
+    private LocalDate dateIssued;
+    private String notes;
     private List<ItemRequest> items;
 
     @Data
@@ -31,11 +23,11 @@ public class PrescriptionCreateRequest {
     @AllArgsConstructor
     @Builder
     public static class ItemRequest {
-        @NotNull
         private Long medicineId;
-
-        @NotNull
-        @Min(1)
         private Integer quantity;
+        private String dosage;  // Fixed: Added
+        private String frequency;  // Fixed: Added
+        private String duration;  // Fixed: Added
+        private String instructions;  // Fixed: Added
     }
 }

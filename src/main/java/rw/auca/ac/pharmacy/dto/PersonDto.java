@@ -6,9 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import rw.auca.ac.pharmacy.model.enums.Role;
 
-/**
- * DTO for Person entity responses.
- */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

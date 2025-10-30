@@ -1,5 +1,6 @@
 package rw.auca.ac.pharmacy.controller;
 
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -20,7 +21,7 @@ public class PersonController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
-    public ResponseEntity<PersonDto> create(@RequestBody PersonRequest request) {
+    public ResponseEntity<PersonDto> create(@RequestBody @Valid PersonRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(service.create(request));
     }
 
@@ -35,7 +36,7 @@ public class PersonController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<PersonDto> update(@PathVariable Long id, @RequestBody PersonRequest request) {
+    public ResponseEntity<PersonDto> update(@PathVariable Long id, @RequestBody @Valid PersonRequest request) {
         return ResponseEntity.ok(service.update(id, request));
     }
 
@@ -46,14 +47,12 @@ public class PersonController {
     }
 
     @GetMapping("/by-province")
-    public ResponseEntity<Page<PersonDto>> getByProvinceName(
-            @RequestParam String provinceName, Pageable pageable) {
+    public ResponseEntity<Page<PersonDto>> getByProvinceName(@RequestParam String provinceName, @PageableDefault(size = 10) Pageable pageable) {
         return ResponseEntity.ok(service.getByProvinceName(provinceName, pageable));
     }
 
     @GetMapping("/by-province-code")
-    public ResponseEntity<Page<PersonDto>> getByProvinceCode(
-            @RequestParam String code, Pageable pageable) {
+    public ResponseEntity<Page<PersonDto>> getByProvinceCode(@RequestParam String code, @PageableDefault(size = 10) Pageable pageable) {
         return ResponseEntity.ok(service.getByProvinceCode(code, pageable));
     }
 

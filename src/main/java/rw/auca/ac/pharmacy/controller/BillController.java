@@ -28,5 +28,14 @@ public class BillController {
         return ResponseEntity.ok(service.get(id));
     }
 
-    // Future update/delete endpoints can follow this same pattern
+    @PutMapping("/{id}")
+    public ResponseEntity<BillDto> update(@PathVariable Long id, @Valid @RequestBody BillRequest request) {
+        return ResponseEntity.ok(service.update(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void delete(@PathVariable Long id) {
+        service.delete(id);
+    }
 }

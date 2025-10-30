@@ -1,11 +1,15 @@
 package rw.auca.ac.pharmacy.repository;
 
-import java.util.List;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import rw.auca.ac.pharmacy.model.core.PrescriptionItem;
 
 public interface PrescriptionItemRepository extends JpaRepository<PrescriptionItem, Long> {
-    List<PrescriptionItem> findByPrescriptionId(Long prescriptionId);
-    List<PrescriptionItem> findByMedicineId(Long medicineId);
+
+    Page<PrescriptionItem> findByPrescriptionId(Long prescriptionId, Pageable pageable);
+
+    Page<PrescriptionItem> findByMedicineId(Long medicineId, Pageable pageable);
+
+    Page<PrescriptionItem> findAll(Pageable pageable);
 }

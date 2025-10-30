@@ -1,7 +1,9 @@
 package rw.auca.ac.pharmacy.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,13 +27,13 @@ public class LocationSeeder {
     private final CellRepository cellRepo;
     private final VillageRepository villageRepo;
 
-    private final ObjectMapper mapper = new ObjectMapper();
+    private final ObjectMapper mapper = new ObjectMapper()
+            .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE);
 
     @PostConstruct
     @Transactional
     public void seed() {
         try {
-            // Skip if already seeded
             if (provinceRepo.count() > 0) {
                 log.info("🌍 Rwanda locations already exist. Skipping seeding.");
                 return;
@@ -39,74 +41,118 @@ public class LocationSeeder {
 
             log.info("🌍 Loading Rwanda location data...");
             InputStream stream = new ClassPathResource("data/location/locations.json").getInputStream();
-            List<LocationRecord> records = mapper.readValue(stream, new TypeReference<>() {});
 
-            if (records.isEmpty()) {
-                log.warn("⚠️ No locations found in JSON file.");
+            // Explicit TypeReference – no diamond
+            List<LocationRecord> records = mapper.readValue(
+                    stream, new TypeReference<List<LocationRecord>>() {}
+            );
+            if (records == null || records.isEmpty()) {
+                log.warn("⚠️ No location data found in JSON file.");
                 return;
             }
+
+            log.info("📦 Found {} location records. Seeding now...", records.size());
 
             Map<String, Province> provinceMap = new HashMap<>();
             Map<String, District> districtMap = new HashMap<>();
             Map<String, Sector> sectorMap = new HashMap<>();
             Map<String, Cell> cellMap = new HashMap<>();
+            List<Village> villages = new ArrayList<>();
 
             for (LocationRecord r : records) {
-                Province province = provinceMap.computeIfAbsent(r.provinceCode, c ->
-                        Province.builder()
-                                .code(c)
-                                .name(r.provinceName)
-                                .build());
+                // Coerce ALL codes to String – fixed: Explicit s() on every code
+                String provinceCode = s(r.provinceCode());
+                String districtCode = s(r.districtCode());
+                String sectorCode = s(r.sectorCode());
+                String cellCode = s(r.cellCode());
+                String villageCode = s(r.villageCode());
 
-                District district = districtMap.computeIfAbsent(r.districtCode, c ->
-                        District.builder()
-                                .code(c)
-                                .name(r.districtName)
-                                .province(province)
-                                .build());
+                // Province
+                Province province = provinceMap.get(provinceCode);
+                if (province == null) {
+                    province = Province.builder()
+                            .code(provinceCode)
+                            .name(r.provinceName())
+                            .build();
+                    provinceMap.put(provinceCode, province);
+                }
 
-                Sector sector = sectorMap.computeIfAbsent(r.sectorCode, c ->
-                        Sector.builder()
-                                .code(c)
-                                .name(r.sectorName)
-                                .district(district)
-                                .build());
+                // District
+                District district = districtMap.get(districtCode);
+                if (district == null) {
+                    district = District.builder()
+                            .code(districtCode)
+                            .name(r.districtName())
+                            .province(province)
+                            .build();
+                    districtMap.put(districtCode, district);
+                }
 
-                Cell cell = cellMap.computeIfAbsent(r.cellCode, c ->
-                        Cell.builder()
-                                .code(c)
-                                .name(r.cellName)
-                                .sector(sector)
-                                .build());
+                // Sector
+                Sector sector = sectorMap.get(sectorCode);
+                if (sector == null) {
+                    sector = Sector.builder()
+                            .code(sectorCode)
+                            .name(r.sectorName())
+                            .district(district)
+                            .build();
+                    sectorMap.put(sectorCode, sector);
+                }
 
-                villageRepo.save(Village.builder()
-                        .code(r.villageCode)
-                        .name(r.villageName)
+                // Cell
+                Cell cell = cellMap.get(cellCode);
+                if (cell == null) {
+                    cell = Cell.builder()
+                            .code(cellCode)
+                            .name(r.cellName())
+                            .sector(sector)
+                            .build();
+                    cellMap.put(cellCode, cell);
+                }
+
+                // Village
+                villages.add(Village.builder()
+                        .code(villageCode)
+                        .name(r.villageName())
                         .cell(cell)
                         .build());
             }
 
+            // Persist hierarchy
             provinceRepo.saveAll(provinceMap.values());
             districtRepo.saveAll(districtMap.values());
             sectorRepo.saveAll(sectorMap.values());
             cellRepo.saveAll(cellMap.values());
+            villageRepo.saveAll(villages);
 
-            log.info("✅ Rwanda location data seeded successfully.");
+            log.info("✅ Rwanda location data seeded: {} provinces, {} districts, {} sectors, {} cells, {} villages.",
+                    provinceMap.size(), districtMap.size(), sectorMap.size(), cellMap.size(), villages.size());
+
         } catch (Exception e) {
             log.error("❌ Failed to seed Rwanda locations", e);
         }
     }
 
+    // JSON record: Codes as Object (handles num/str), names as String
+    @JsonIgnoreProperties(ignoreUnknown = true)
     private record LocationRecord(
-            String provinceCode,
+            Object provinceCode,
             String provinceName,
-            String districtCode,
+            Object districtCode,
             String districtName,
-            String sectorCode,
+            Object sectorCode,
             String sectorName,
-            String cellCode,
+            Object cellCode,
             String cellName,
-            String villageCode,
+            Object villageCode,
             String villageName
     ) {}
+
+    // Coerce Object to clean String (handles numbers, ".0" suffixes)
+    private static String s(Object o) {
+        if (o == null) return null;
+        String v = String.valueOf(o).trim();
+        if (v.endsWith(".0")) v = v.substring(0, v.length() - 2);
+        return v; 
+    }
 }

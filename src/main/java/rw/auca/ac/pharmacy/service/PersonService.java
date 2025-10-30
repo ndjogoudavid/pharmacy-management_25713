@@ -4,12 +4,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import rw.auca.ac.pharmacy.dto.PersonDto;
 import rw.auca.ac.pharmacy.dto.PersonRequest;
 import rw.auca.ac.pharmacy.model.core.Person;
-import rw.auca.ac.pharmacy.model.enums.Role;
 import rw.auca.ac.pharmacy.model.location.Village;
 import rw.auca.ac.pharmacy.repository.PersonRepository;
 
@@ -21,9 +21,11 @@ import java.util.Optional;
 @Slf4j
 @Transactional
 public class PersonService {
+    private static final String PERSON_NOT_FOUND_MSG = "Person not found with ID: ";
+
     private final PersonRepository repository;
 
-    public Page<PersonDto> findAll(Pageable pageable) {
+    public @NonNull Page<PersonDto> findAll(@NonNull Pageable pageable) {
         return repository.findAll(pageable).map(this::toDto);
     }
 
@@ -32,7 +34,7 @@ public class PersonService {
         Person person = Person.builder()
                 .name(request.getName().trim())
                 .email(request.getEmail().toLowerCase().trim())
-                .phone(request.getPhone().trim())
+                .phone(request.getPhone() != null ? request.getPhone().trim() : null)
                 .role(request.getRole())
                 .village(Village.builder().id(request.getVillageId()).build())
                 .build();
@@ -43,21 +45,21 @@ public class PersonService {
 
     public PersonDto get(Long id) {
         Person person = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Person not found with ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(PERSON_NOT_FOUND_MSG + id));
         return toDto(person);
     }
 
-    public Page<PersonDto> getAll(Pageable pageable) {
+    public @NonNull Page<PersonDto> getAll(@NonNull Pageable pageable) {
         return repository.findAll(pageable).map(this::toDto);
     }
 
     public PersonDto update(Long id, PersonRequest request) {
         validateRequest(request, false);
         Person person = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Person not found with ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(PERSON_NOT_FOUND_MSG + id));
         person.setName(request.getName().trim());
         person.setEmail(request.getEmail().toLowerCase().trim());
-        person.setPhone(request.getPhone().trim());
+        person.setPhone(request.getPhone() != null ? request.getPhone().trim() : null);
         person.setRole(request.getRole());
         person.setVillage(Village.builder().id(request.getVillageId()).build());
         Person updated = repository.save(person);
@@ -67,23 +69,23 @@ public class PersonService {
 
     public void delete(Long id) {
         Person person = repository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Person not found with ID: " + id));
+                .orElseThrow(() -> new IllegalArgumentException(PERSON_NOT_FOUND_MSG + id));
         person.setDeletedAt(LocalDateTime.now());
         repository.save(person);
         log.warn("🗑️ Soft-deleted person ID {}", id);
     }
 
-    public Page<PersonDto> getByProvinceName(String name, Pageable pageable) {
+    public @NonNull Page<PersonDto> getByProvinceName(String name, @NonNull Pageable pageable) {
         return repository.findByProvinceName(name.trim(), pageable).map(this::toDto);
     }
 
-    public Page<PersonDto> getByProvinceCode(String code, Pageable pageable) {
+    public @NonNull Page<PersonDto> getByProvinceCode(String code, @NonNull Pageable pageable) {
         return repository.findByProvinceCode(code.trim(), pageable).map(this::toDto);
     }
 
     public String getPersonProvince(Long personId) {
         Person p = repository.findById(personId)
-                .orElseThrow(() -> new IllegalArgumentException("Person not found with ID: " + personId));
+                .orElseThrow(() -> new IllegalArgumentException(PERSON_NOT_FOUND_MSG + personId));
 
         return Optional.ofNullable(p.getVillage())
                 .map(v -> v.getCell()
