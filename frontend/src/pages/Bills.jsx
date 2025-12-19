@@ -120,6 +120,7 @@ export default function Bills() {
   };
 
   const load = async (p = page) => {
+    setPage(p);
     try {
       const res = await api.get('/bills', {
         params: {
@@ -132,8 +133,9 @@ export default function Bills() {
           patientName: filter.patientName || undefined,
         },
       });
-      setItems(res.data.content);
-      setTotalPages(res.data.totalPages);
+      setItems(res.data?.content || []);
+      setTotalPages(res.data?.totalPages ?? 0);
+      setPage(res.data?.number ?? p);
     } catch (err) {
       showToast('error', err.message || 'Failed to load bills');
     }
