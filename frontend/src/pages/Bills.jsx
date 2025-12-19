@@ -47,7 +47,7 @@ export default function Bills() {
     setForm({
       prescriptionId: '',
       status: 'PENDING',
-      paymentMethod: 'CASH',
+      paymentMethod: '',
       paymentRef: '',
       discountAmount: 0,
       taxAmount: 0,
@@ -332,6 +332,7 @@ export default function Bills() {
               <label>Payment method</label>
               <select
                 value={form.paymentMethod}
+                disabled={form.status === 'PENDING'}
                 onChange={(e) =>
                   setForm({ ...form, paymentMethod: e.target.value })
                 }
