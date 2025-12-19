@@ -69,12 +69,32 @@ export default function Bills() {
 
   const save = async () => {
     try {
-      const data = { ...form };
+      // Normalize payload to what backend expects (numbers + seconds in datetime)
+      const paymentDate =
+        form.paymentDate && form.paymentDate.length === 16
+          ? `${form.paymentDate}:00`
+          : form.paymentDate;
+
+      const data = {
+        status: form.status,
+        paymentMethod: form.paymentMethod || null,
+        paymentRef: form.paymentRef || null,
+        discountAmount:
+          form.discountAmount === '' || form.discountAmount === null
+            ? null
+            : Number(form.discountAmount),
+        taxAmount:
+          form.taxAmount === '' || form.taxAmount === null
+            ? null
+            : Number(form.taxAmount),
+        paymentDate,
+      };
+
       if (editing) {
         await api.put(`/bills/${editing}`, data);
         showToast('info', 'Bill updated');
       } else {
-        await api.post(`/bills/prescriptions/${form.prescriptionId}`, data);
+        await api.post(`/bills/for-prescription/${form.prescriptionId}`, data);
         showToast('info', 'Bill created');
       }
       setIsModalOpen(false);
