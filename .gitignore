@@ -4,11 +4,14 @@
 *.war
 *.ear
 target/
+backend/target/
 *.log
 
-# Maven
-.mvn/
+# Maven wrapper
+.mvn/*
+!.mvn/wrapper/
 !.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
 
 # Spring Boot
 spring-boot-*.log
@@ -33,3 +36,11 @@ Thumbs.db
 .upm/
 .cache/
 replit.nix
+
+# Frontend build artifacts
+frontend/dist/
+frontend/node_modules/
+
+# Local environment files
+backend/.env
+frontend/.env

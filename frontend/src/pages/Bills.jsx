@@ -22,7 +22,7 @@ export default function Bills() {
   const [form, setForm] = useState({
     prescriptionId: '',
     status: 'PENDING',
-    paymentMethod: 'CASH',
+    paymentMethod: '',
     paymentRef: '',
     discountAmount: 0,
     taxAmount: 0,
@@ -60,7 +60,8 @@ export default function Bills() {
     try {
       const res = await api.get(`/bills/${id}`);
       setEditing(id);
-      setForm({ ...res.data, paymentDate: new Date(res.data.paymentDate).toISOString().slice(0, 16) });
+      const pd = res.data.paymentDate ? String(res.data.paymentDate).slice(0, 16) : '';
+      setForm({ ...res.data, paymentDate: pd });
       setIsModalOpen(true);
     } catch (err) {
       showToast('error', err.message || 'Failed to load bill');
@@ -261,7 +262,7 @@ export default function Bills() {
               <td>{b.paymentRef}</td>
               <td>{b.subtotal}</td>
               <td>{b.netTotal}</td>
-              <td>{b.paymentDate}</td>
+              <td>{b.paymentDate ? String(b.paymentDate).slice(0, 16) : ''}</td>
               <td>
                 <button
                   type="button"
@@ -313,7 +314,14 @@ export default function Bills() {
               <label>Status</label>
               <select
                 value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                onChange={(e) => {
+                  const nextStatus = e.target.value;
+                  setForm({
+                    ...form,
+                    status: nextStatus,
+                    paymentMethod: nextStatus === 'PENDING' ? '' : form.paymentMethod,
+                  });
+                }}
               >
                 <option value="PENDING">PENDING</option>
                 <option value="PAID">PAID</option>

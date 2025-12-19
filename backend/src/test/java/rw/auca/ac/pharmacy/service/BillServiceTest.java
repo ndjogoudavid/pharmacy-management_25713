@@ -49,8 +49,8 @@ class BillServiceTest {
     void filtersBillsByPatientNameWithPagination() {
         Location province = locationRepository.save(
                 Location.builder()
-                        .code("01")
-                        .name("Kigali")
+                        .code("TP01")
+                        .name("Test Province")
                         .type(LocationType.PROVINCE)
                         .build()
         );
