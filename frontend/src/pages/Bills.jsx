@@ -4,6 +4,8 @@ import PrimaryButton from '../components/PrimaryButton';
 import Modal from '../components/Modal';
 import TablePagination from '../components/TablePagination';
 import useDebounce from '../hooks/useDebounce';
+import { useAuth } from '../context/AuthContext';
+import { useSearchParams } from 'react-router-dom';
 
 export default function Bills() {
   const [items, setItems] = useState([]);
@@ -16,11 +18,13 @@ export default function Bills() {
     paymentRef: '',
     prescriptionId: '',
     patientName: '',
+    id: '',
   });
+  const [sort, setSort] = useState('id,desc');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+
   const [form, setForm] = useState({
-    prescriptionId: '',
     status: 'PENDING',
     paymentMethod: '',
     paymentRef: '',
@@ -31,6 +35,12 @@ export default function Bills() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   // debounce filters to avoid rapid requests
   const debouncedFilter = useDebounce(filter, 300);
+  const debouncedSort = useDebounce(sort, 300);
+  const { role } = useAuth();
+  const [tableSearch, setTableSearch] = useState('');
+  const debouncedTableSearch = useDebounce(tableSearch, 300);
+  const [params] = useSearchParams();
+  const focusId = Number(params.get('focus'));
 
   // Local toast-style feedback so we avoid undefined context methods
   const [toast, setToast] = useState(null);
@@ -40,20 +50,6 @@ export default function Bills() {
   const onSearch = (e) => {
     e.preventDefault();
     load(0);
-  };
-
-  const openCreate = () => {
-    setEditing(null);
-    setForm({
-      prescriptionId: '',
-      status: 'PENDING',
-      paymentMethod: '',
-      paymentRef: '',
-      discountAmount: 0,
-      taxAmount: 0,
-      paymentDate: new Date().toISOString().slice(0, 16),
-    });
-    setIsModalOpen(true);
   };
 
   const openEdit = async (id) => {
@@ -70,6 +66,10 @@ export default function Bills() {
 
   const save = async () => {
     try {
+      if (!editing) {
+        showToast('error', 'Bill creation is disabled. Bills are created when dispensing.');
+        return;
+      }
       // Normalize payload to what backend expects (numbers + seconds in datetime)
       const paymentDate =
         form.paymentDate && form.paymentDate.length === 16
@@ -91,13 +91,8 @@ export default function Bills() {
         paymentDate,
       };
 
-      if (editing) {
-        await api.put(`/bills/${editing}`, data);
-        showToast('info', 'Bill updated');
-      } else {
-        await api.post(`/bills/for-prescription/${form.prescriptionId}`, data);
-        showToast('info', 'Bill created');
-      }
+      await api.put(`/bills/${editing}`, data);
+      showToast('info', 'Bill updated');
       setIsModalOpen(false);
       load();
     } catch (err) {
@@ -123,27 +118,45 @@ export default function Bills() {
   const load = async (p = page) => {
     setPage(p);
     try {
+      const qTerm = debouncedTableSearch.trim();
       const res = await api.get('/bills', {
         params: {
           page: p,
           size,
+          id: filter.id || undefined,
           status: filter.status || undefined,
           paymentMethod: filter.paymentMethod || undefined,
           paymentRef: filter.paymentRef || undefined,
           prescriptionId: filter.prescriptionId || undefined,
           patientName: filter.patientName || undefined,
+          q: qTerm || undefined,
+          sort: sort || undefined,
         },
       });
       setItems(res.data?.content || []);
       setTotalPages(res.data?.totalPages ?? 0);
       setPage(res.data?.number ?? p);
     } catch (err) {
-      showToast('error', err.message || 'Failed to load bills');
+      const msg =
+        err.userMessage ||
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        err.message ||
+        'Failed to load bills';
+      showToast('error', msg);
     }
   };
 
   const clearFilters = () => {
-    setFilter({ status: '', paymentMethod: '', paymentRef: '', prescriptionId: '', patientName: '' });
+    setFilter({
+      status: '',
+      paymentMethod: '',
+      paymentRef: '',
+      prescriptionId: '',
+      patientName: '',
+      id: '',
+    });
+    setSort('id,desc');
   };
 
   useEffect(() => {
@@ -155,7 +168,19 @@ export default function Bills() {
   useEffect(() => {
     load(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedFilter]);
+  }, [debouncedFilter, debouncedSort, debouncedTableSearch]);
+
+  const formatWalkInLabel = (customerName, customerPhone, patientName) => {
+    const name = customerName ? customerName.trim() : '';
+    const phone = customerPhone ? customerPhone.trim() : '';
+    if (name || phone) {
+      return `Walk-in: ${name || phone}`;
+    }
+    if (patientName && patientName.toLowerCase() === 'walk-in customer') {
+      return 'Walk-in Customer';
+    }
+    return patientName || '-';
+  };
 
   return (
     <div>
@@ -166,35 +191,49 @@ export default function Bills() {
           role="status"
         >
           {toast.message}
-          <button
+          <PrimaryButton
             type="button"
-            className="btn btn-ghost"
+            variant="ghost"
             style={{ marginLeft: '0.5rem' }}
             onClick={clearToast}
           >
             Close
-          </button>
+          </PrimaryButton>
         </div>
       )}
       <div className="page-header">
         <h1>Bills</h1>
         <div className="page-header__actions">
           <form onSubmit={onSearch} className="filters">
-            <input
-              placeholder="Patient name"
-              value={filter.patientName}
-              onChange={(e) =>
-                setFilter({ ...filter, patientName: e.target.value })
-              }
-            />
-            <input
-              type="number"
-              placeholder="Prescription ID"
-              value={filter.prescriptionId}
-              onChange={(e) =>
-                setFilter({ ...filter, prescriptionId: e.target.value })
-              }
-            />
+            <>
+              <input
+                type="number"
+                placeholder="Bill ID"
+                value={filter.id}
+                onChange={(e) =>
+                  setFilter({ ...filter, id: e.target.value })
+                }
+                style={{ width: '80px' }}
+              />
+              <input
+                type="number"
+                placeholder="Prescription ID"
+                value={filter.prescriptionId}
+                onChange={(e) =>
+                  setFilter({ ...filter, prescriptionId: e.target.value })
+                }
+                style={{ width: '110px' }}
+              />
+              {role !== 'PATIENT' && (
+                <input
+                  placeholder="Patient name"
+                  value={filter.patientName}
+                  onChange={(e) =>
+                    setFilter({ ...filter, patientName: e.target.value })
+                  }
+                />
+              )}
+            </>
             <select
               value={filter.status}
               onChange={(e) => setFilter({ ...filter, status: e.target.value })}
@@ -204,6 +243,17 @@ export default function Bills() {
               <option value="PAID">PAID</option>
               <option value="CANCELLED">CANCELLED</option>
             </select>
+            <select
+              value={filter.paymentMethod}
+              onChange={(e) =>
+                setFilter({ ...filter, paymentMethod: e.target.value })
+              }
+            >
+              <option value="">Any Method</option>
+              <option value="CASH">CASH</option>
+              <option value="CARD">CARD</option>
+              <option value="MOBILE">MOBILE</option>
+            </select>
             <input
               placeholder="Payment ref"
               value={filter.paymentRef}
@@ -211,18 +261,27 @@ export default function Bills() {
                 setFilter({ ...filter, paymentRef: e.target.value })
               }
             />
-            <button
+            <PrimaryButton
               type="button"
-              className="btn btn-secondary"
+              variant="secondary"
               onClick={clearFilters}
             >
               Clear filters
-            </button>
-          </form>
-          <div style={{ marginTop: '0.5rem' }}>
-            <PrimaryButton type="button" onClick={() => openCreate()}>
-              New bill for prescription
             </PrimaryButton>
+          </form>
+          <div className="filters" style={{ marginTop: '0.25rem' }}>
+            <input
+              placeholder="Search by ID, rx, patient, status, method, ref, amount..."
+              value={tableSearch}
+              onChange={(e) => setTableSearch(e.target.value)}
+              style={{ flex: 1 }}
+            />
+            <select value={sort} onChange={(e) => setSort(e.target.value)}>
+              <option value="id,desc">ID: High → Low</option>
+              <option value="id,asc">ID: Low → High</option>
+              <option value="netTotal,desc">Amount: High → Low</option>
+              <option value="netTotal,asc">Amount: Low → High</option>
+            </select>
           </div>
         </div>
       </div>
@@ -232,6 +291,7 @@ export default function Bills() {
           <tr>
             <th>ID</th>
             <th>Rx</th>
+            <th>Patient</th>
             <th>Status</th>
             <th>Method</th>
             <th>Ref</th>
@@ -243,16 +303,17 @@ export default function Bills() {
         </thead>
         <tbody>
           {items.map((b) => (
-            <tr key={b.id}>
+            <tr key={b.id} className={focusId === b.id ? 'focus-row' : ''}>
               <td>{b.id}</td>
               <td>{b.prescriptionId}</td>
+              <td>{formatWalkInLabel(b.customerName, b.customerPhone, b.patientName)}</td>
               <td>
                 <span
                   className={`status-pill ${b.status === 'PAID'
-                      ? 'status-pill--ok'
-                      : b.status === 'PENDING'
-                        ? 'status-pill--warn'
-                        : 'status-pill--danger'
+                    ? 'status-pill--ok'
+                    : b.status === 'PENDING'
+                      ? 'status-pill--warn'
+                      : 'status-pill--danger'
                     }`}
                 >
                   {b.status}
@@ -264,26 +325,55 @@ export default function Bills() {
               <td>{b.netTotal}</td>
               <td>{b.paymentDate ? String(b.paymentDate).slice(0, 16) : ''}</td>
               <td>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => openEdit(b.id)}
-                >
-                  Edit
-                </button>{' '}
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={() => requestRemove(b)}
-                >
-                  Delete
-                </button>
+                {role !== 'PATIENT' ? (
+                  <>
+                    {b.status === 'PAID' ? (
+                      <PrimaryButton
+                        type="button"
+                        variant="secondary"
+                        onClick={() => window.location.href = `/bills/${b.id}/receipt`}
+                      >
+                        Print Receipt
+                      </PrimaryButton>
+                    ) : (
+                      <>
+                        <PrimaryButton
+                          type="button"
+                          variant="secondary"
+                          onClick={() => openEdit(b.id)}
+                        >
+                          Edit
+                        </PrimaryButton>{' '}
+                        <PrimaryButton
+                          type="button"
+                          variant="danger"
+                          onClick={() => requestRemove(b)}
+                        >
+                          Delete
+                        </PrimaryButton>
+                      </>
+                    )}
+                  </>
+                ) : (
+                  /* Patient view - can print PAID bills */
+                  b.status === 'PAID' ? (
+                    <PrimaryButton
+                      type="button"
+                      variant="secondary"
+                      onClick={() => window.location.href = `/bills/${b.id}/receipt`}
+                    >
+                      🧾 Print
+                    </PrimaryButton>
+                  ) : (
+                    <span className="chip">Pending</span>
+                  )
+                )}
               </td>
             </tr>
           ))}
           {items.length === 0 && (
             <tr>
-              <td colSpan={9}>No bills found.</td>
+              <td colSpan={10}>No bills found.</td>
             </tr>
           )}
         </tbody>
@@ -292,24 +382,13 @@ export default function Bills() {
 
       {isModalOpen && (
         <Modal
-          title={editing ? 'Edit bill' : 'New bill for prescription'}
+          title="Edit bill"
           onClose={() => setIsModalOpen(false)}
           primaryLabel="Save"
           onPrimary={save}
           secondaryLabel="Cancel"
         >
           <div className="form-grid">
-            {!editing && (
-              <div className="field">
-                <label>Prescription ID</label>
-                <input
-                  value={form.prescriptionId}
-                  onChange={(e) =>
-                    setForm({ ...form, prescriptionId: e.target.value })
-                  }
-                />
-              </div>
-            )}
             <div className="field">
               <label>Status</label>
               <select
@@ -351,6 +430,11 @@ export default function Bills() {
                   setForm({ ...form, paymentRef: e.target.value })
                 }
               />
+              {form.status === 'PAID' && (
+                <small style={{ color: 'var(--ph-danger)' }}>
+                  Payment reference is required for PAID bills.
+                </small>
+              )}
             </div>
             <div className="field">
               <label>Discount amount</label>
@@ -372,16 +456,7 @@ export default function Bills() {
                 onChange={(e) => setForm({ ...form, taxAmount: e.target.value })}
               />
             </div>
-            <div className="field">
-              <label>Payment date</label>
-              <input
-                type="datetime-local"
-                value={form.paymentDate}
-                onChange={(e) =>
-                  setForm({ ...form, paymentDate: e.target.value })
-                }
-              />
-            </div>
+            {/* Payment date is auto-set to NOW when marking as PAID - not editable */}
           </div>
         </Modal>
       )}
@@ -401,3 +476,5 @@ export default function Bills() {
     </div>
   );
 }
+
+

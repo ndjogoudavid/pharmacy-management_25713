@@ -5,7 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.context.annotation.Profile;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import rw.auca.ac.pharmacy.model.core.Category;
@@ -26,6 +26,7 @@ import rw.auca.ac.pharmacy.repository.location.LocationRepository;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -34,6 +35,7 @@ import java.util.Optional;
 @Component
 @RequiredArgsConstructor
 @Slf4j
+@Order(2) // run after LocationSeeder
 public class DemoDataSeeder implements CommandLineRunner {
 
     @Value("${app.seed.demo:false}")
@@ -58,38 +60,54 @@ public class DemoDataSeeder implements CommandLineRunner {
         log.info("APP_SEED_DEMO=true: seeding demo data...");
 
         Location anyLocation = resolveLocation();
+        if (anyLocation == null) {
+            log.warn("APP_SEED_DEMO enabled but no locations are present; skipping demo seed. Ensure LocationSeeder ran.");
+            return;
+        }
 
-        Person admin = ensureUser("admin@demo.com", "Admin User", Role.ADMIN, anyLocation);
+        ensureUser("admin@demo.com", "Admin User", Role.ADMIN, anyLocation);
         Person pharmacist = ensureUser("pharma@demo.com", "Pharma Demo", Role.PHARMACIST, anyLocation);
         Person patient = ensureUser("patient@demo.com", "Patient Demo", Role.PATIENT, anyLocation);
 
         Category cat1 = categoryRepository.findByName("Antibiotics")
-                .orElseGet(() -> categoryRepository.save(Category.builder().name("Antibiotics").description("Demo antibiotics").build()));
+                .orElseGet(() -> {
+                    Category category = Objects.requireNonNull(Category.builder()
+                            .name("Antibiotics")
+                            .description("Demo antibiotics")
+                            .build());
+                    return categoryRepository.save(category);
+                });
         Category cat2 = categoryRepository.findByName("Pain Relief")
-                .orElseGet(() -> categoryRepository.save(Category.builder().name("Pain Relief").description("Demo analgesics").build()));
+                .orElseGet(() -> {
+                    Category category = Objects.requireNonNull(Category.builder()
+                            .name("Pain Relief")
+                            .description("Demo analgesics")
+                            .build());
+                    return categoryRepository.save(category);
+                });
 
         Medicine med1 = ensureMedicine("AMOX-001", "Amoxicillin", 100, BigDecimal.valueOf(12_00), List.of(cat1));
         Medicine med2 = ensureMedicine("IBU-200", "Ibuprofen 200mg", 200, BigDecimal.valueOf(5_00), List.of(cat2));
 
         // Prescriptions
         if (prescriptionRepository.count() == 0) {
-            Prescription pending = Prescription.builder()
+            Prescription pending = Objects.requireNonNull(Prescription.builder()
                     .dateIssued(LocalDateTime.now().minusDays(1))
                     .status(PrescriptionStatus.PENDING)
                     .person(patient)
                     .pharmacist(pharmacist)
                     .notes("Demo pending prescription")
-                    .build();
+                    .build());
             Prescription savedPending = prescriptionRepository.save(pending);
             prescriptionRepository.save(addItem(savedPending, med1, 2, "500mg", "TID", "5 days", "After meals"));
 
-            Prescription filled = Prescription.builder()
+            Prescription filled = Objects.requireNonNull(Prescription.builder()
                     .dateIssued(LocalDateTime.now().minusDays(2))
                     .status(PrescriptionStatus.FILLED)
                     .person(patient)
                     .pharmacist(pharmacist)
                     .notes("Demo filled prescription")
-                    .build();
+                    .build());
             Prescription savedFilled = prescriptionRepository.save(filled);
             Prescription filledWithItems = addItem(savedFilled, med2, 1, "200mg", "BID", "3 days", "With water");
             filledWithItems.getItems().forEach(item -> {
@@ -102,13 +120,16 @@ public class DemoDataSeeder implements CommandLineRunner {
 
     private Person ensureUser(String email, String name, Role role, Location loc) {
         return Optional.ofNullable(personRepository.findByEmail(email))
-                .orElseGet(() -> personRepository.save(Person.builder()
-                        .email(email)
-                        .name(name)
-                        .role(role)
-                        .password(passwordEncoder.encode(demoPassword))
-                        .location(loc)
-                        .build()));
+                .orElseGet(() -> {
+                    Person person = Objects.requireNonNull(Person.builder()
+                            .email(email)
+                            .name(name)
+                            .role(role)
+                            .password(passwordEncoder.encode(demoPassword))
+                            .location(loc)
+                            .build());
+                    return personRepository.save(person);
+                });
     }
 
     private Medicine ensureMedicine(String sku, String name, int quantity, BigDecimal price, List<Category> categories) {
@@ -147,11 +168,6 @@ public class DemoDataSeeder implements CommandLineRunner {
                 .or(() -> locationRepository.findByType(LocationType.SECTOR).stream().findFirst())
                 .or(() -> locationRepository.findByType(LocationType.DISTRICT).stream().findFirst())
                 .or(() -> locationRepository.findByType(LocationType.PROVINCE).stream().findFirst())
-                .orElseGet(() -> locationRepository.save(Location.builder()
-                        .code("DEMO-LOC")
-                        .name("Demo Location")
-                        .type(LocationType.PROVINCE)
-                        .build()));
+                .orElse(null);
     }
 }
-

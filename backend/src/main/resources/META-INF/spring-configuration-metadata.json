@@ -1,0 +1,34 @@
+{
+  "properties": [
+    {
+      "name": "app.security.jwt.secret",
+      "type": "java.lang.String",
+      "description": "JWT secret key (base64)."
+    },
+    {
+      "name": "app.security.jwt.expiration-ms",
+      "type": "java.lang.Long",
+      "description": "JWT expiration time in milliseconds."
+    },
+    {
+      "name": "app.frontend.reset-url",
+      "type": "java.lang.String",
+      "description": "Frontend reset password URL."
+    },
+    {
+      "name": "app.auth.log-codes",
+      "type": "java.lang.Boolean",
+      "description": "Whether to log auth codes for debugging."
+    },
+    {
+      "name": "app.seed.demo",
+      "type": "java.lang.Boolean",
+      "description": "Enable demo data seeding."
+    },
+    {
+      "name": "app.seed.demo.password",
+      "type": "java.lang.String",
+      "description": "Password for demo accounts."
+    }
+  ]
+}

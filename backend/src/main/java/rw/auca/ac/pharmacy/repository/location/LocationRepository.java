@@ -3,13 +3,14 @@ package rw.auca.ac.pharmacy.repository.location;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import rw.auca.ac.pharmacy.model.enums.LocationType;
 import rw.auca.ac.pharmacy.model.location.Location;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface LocationRepository extends JpaRepository<Location, Long> {
+public interface LocationRepository extends JpaRepository<Location, Long>, JpaSpecificationExecutor<Location> {
 
     boolean existsByCode(String code);
 

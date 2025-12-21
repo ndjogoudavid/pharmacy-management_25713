@@ -7,6 +7,7 @@ Quick start (development):
 - Backend
   - Copy `backend/.env.example` to `backend/.env` and set values.
   - To preload demo data (admin/pharmacist/patient + sample meds/prescriptions), set `APP_SEED_DEMO=true` (and optional `APP_SEED_DEMO_PASSWORD`) in your env before starting.
+  - Create `backend/application-secrets.properties` from `backend/application-secrets.properties.example` and add your real secrets (DB password, mail password, JWT secret). This file is ignored by git.
   - Run the backend:
 ```
 cd backend
