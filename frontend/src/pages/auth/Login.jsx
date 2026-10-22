@@ -122,7 +122,7 @@ export default function Login() {
             </div>
 
             <button type="submit" className="login-submit" disabled={loading}>
-              <span>{loading ? 'Sending verification code…' : 'Continue securely'}</span>
+              <span>{loading ? 'Sending verification code…' : 'Sign in'}</span>
               {!loading && <ArrowRight size={18} aria-hidden="true" />}
             </button>
 
